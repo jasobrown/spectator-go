@@ -64,6 +64,16 @@ func NewRegistry(config *Config) *Registry {
 	return r
 }
 
+func NewRegistryWithLogger(config *Config, logger Logger) *Registry {
+	if config.IsEnabled == nil {
+		config.IsEnabled = func() bool { return true }
+	}
+	r := &Registry{&SystemClock{}, config, map[string]Meter{}, false,
+		logger, &sync.Mutex{}, nil, make(chan struct{})}
+	r.http = NewHttpClient(r, r.config.Timeout)
+	return r
+}
+
 func (r *Registry) Meters() []Meter {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -101,11 +111,11 @@ func (r *Registry) Start() {
 			select {
 			case <-ticker.C:
 				// send measurements
-				r.log.Infof("Sending measurements")
+				r.log.Debugf("Sending measurements")
 				r.publish()
 			case <-r.quit:
 				ticker.Stop()
-				r.log.Infof("Send last updates and quit")
+				r.log.Debugf("Send last updates and quit")
 				return
 			}
 		}
@@ -244,7 +254,8 @@ func (r *Registry) appendMeasurement(payload *[]interface{}, strings map[string]
 		*payload = append(*payload, op)
 		*payload = append(*payload, m.value)
 	} else {
-		r.log.Infof("Invalid statistic for id=%v", m.id)
+		r.log.Infof(
+			"Invalid statistic for id=%v", m.id)
 	}
 
 }
@@ -259,9 +270,9 @@ func (r *Registry) measurementsToJson(measurements []Measurement) ([]byte, error
 	return json.Marshal(payload)
 }
 
-type meterFactoryFun func() Meter
+type MeterFactoryFun func() Meter
 
-func (r *Registry) newMeter(id *Id, meterFactory meterFactoryFun) Meter {
+func (r *Registry) NewMeter(id *Id, meterFactory MeterFactoryFun) Meter {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	meter, exists := r.meters[id.mapKey()]
@@ -277,7 +288,7 @@ func (r *Registry) NewId(name string, tags map[string]string) *Id {
 }
 
 func (r *Registry) CounterWithId(id *Id) *Counter {
-	m := r.newMeter(id, func() Meter {
+	m := r.NewMeter(id, func() Meter {
 		return NewCounter(id)
 	})
 
@@ -297,7 +308,7 @@ func (r *Registry) Counter(name string, tags map[string]string) *Counter {
 }
 
 func (r *Registry) TimerWithId(id *Id) *Timer {
-	m := r.newMeter(id, func() Meter {
+	m := r.NewMeter(id, func() Meter {
 		return NewTimer(id)
 	})
 
@@ -317,7 +328,7 @@ func (r *Registry) Timer(name string, tags map[string]string) *Timer {
 }
 
 func (r *Registry) GaugeWithId(id *Id) *Gauge {
-	m := r.newMeter(id, func() Meter {
+	m := r.NewMeter(id, func() Meter {
 		return NewGauge(id)
 	})
 
@@ -337,7 +348,7 @@ func (r *Registry) Gauge(name string, tags map[string]string) *Gauge {
 }
 
 func (r *Registry) DistributionSummaryWithId(id *Id) *DistributionSummary {
-	m := r.newMeter(id, func() Meter {
+	m := r.NewMeter(id, func() Meter {
 		return NewDistributionSummary(id)
 	})
 
