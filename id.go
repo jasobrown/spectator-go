@@ -114,19 +114,5 @@ func (id *Id) Tags() map[string]string {
 	return id.tags
 }
 
-//func (id *Id) WithTags(tags map[string]string) *Id {
-//	if len(tags) == 0 {
-//		return id
-//	}
-//
-//	newTags := make(map[string]string)
-//
-//	for k, v := range id.tags {
-//		newTags[k] = v
-//	}
-//
-//	for k, v := range tags {
-//		newTags[k] = v
-//	}
-//	return newId(id.name, newTags)
-//}
+//func (id *Id) WithTags(tadco
+
